@@ -600,7 +600,7 @@ function renderDetail(id) {
         h("span", { class: "no", text: label(id) }),
         row.from === "claude" ? h("span", { class: "from-claude", text: t("fromClaude") }) : null,
         isReport(id) ? (row.area || AREAS[0]) : check ? check.section.title : "",
-        row.createdAt ? t("created") + " " + when(row.createdAt) : ""),
+        row.createdAt ? " · " + t("created") + " " + when(row.createdAt) : ""),
       h("h2", { text: title }),
       h("div", { class: "status", role: "group" },
         STATUS_ORDER.map((v) => h("button", { type: "button", "data-v": v, "aria-pressed": String((row.status || "") === v), onclick: () => write(id, { status: v }) }, statusLabel(v)))

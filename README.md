@@ -6,6 +6,12 @@ Made for people who build software with Claude but don't program themselves. Ins
 
 *Deutsch: siehe unten.*
 
+| The board | One report with its thread (dark mode) |
+|---|---|
+| ![List of reports with filters, tags and an urgent report on top](docs/images/reports.png) | ![A report with status buttons, chat thread between you and Claude, and a PDF attachment](docs/images/report-thread.png) |
+
+*Example data. Your board shows your own project name, areas and reports.*
+
 ## What you get
 
 - **Reports** (M-001, M-002, …) with title, area, free tags, urgent flag, text, screenshots and PDFs (up to 20 MB).
