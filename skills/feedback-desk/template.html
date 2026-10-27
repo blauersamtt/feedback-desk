@@ -1,0 +1,741 @@
+<title>Feedback</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Feedback Desk: eine Spalte, Kopf mit „+ Neue Meldung“, Reiter Meldungen/Checkliste,
+   Liste → Antippen öffnet den Verlauf als Chat (Mensch rechts, Claude links), Eingabe unten. */
+:root {
+  --bg: #F3F4F6;
+  --surface: #FFFFFF;
+  --surface-2: #F1F2F4;
+  --ink: #17191E;
+  --ink-2: #464A52;
+  --muted: #696D76;
+  --line: #E1E3E7;
+  --line-soft: #ECEDF0;
+  --accent: #2B6CB0;
+  --accent-ink: #1F4F84;
+  --accent-bg: #E7F0FA;
+  --on-accent: #FFFFFF;
+  --ok: #1F7349;
+  --ok-bg: #E4F3EA;
+  --urgent: #B23A26;
+  --urgent-bg: #FBEAE6;
+  --doing: #6B44D0;
+  --doing-bg: #F0EBFD;
+  --review: #8A5A0B;
+  --review-bg: #FBEFD6;
+  --hold: #4F5B6E;
+  --hold-bg: #E6EAF0;
+  --later: #2F6B6E;
+  --later-bg: #E0F0F0;
+  --shadow: 0 10px 28px rgba(23, 25, 30, .14);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1115; --surface: #181B21; --surface-2: #20242C; --ink: #F0F1F4; --ink-2: #C6C9D0; --muted: #959AA5;
+    --line: #2C313B; --line-soft: #242830; --accent: #79AEE8; --accent-ink: #B3D2F4; --accent-bg: #1A2A3E; --on-accent: #0F1115;
+    --ok: #6FD3A0; --ok-bg: #16301F; --urgent: #FF8B78; --urgent-bg: #3E201B; --doing: #B9A2FF; --doing-bg: #2A2245; --review: #F2C76E; --review-bg: #3A2E14;
+    --hold: #B4C0D4; --hold-bg: #262C36; --later: #86D1D4; --later-bg: #183234;
+    --shadow: 0 10px 28px rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1115; --surface: #181B21; --surface-2: #20242C; --ink: #F0F1F4; --ink-2: #C6C9D0; --muted: #959AA5;
+  --line: #2C313B; --line-soft: #242830; --accent: #79AEE8; --accent-ink: #B3D2F4; --accent-bg: #1A2A3E; --on-accent: #0F1115;
+  --ok: #6FD3A0; --ok-bg: #16301F; --urgent: #FF8B78; --urgent-bg: #3E201B; --doing: #B9A2FF; --doing-bg: #2A2245; --review: #F2C76E; --review-bg: #3A2E14;
+  --hold: #B4C0D4; --hold-bg: #262C36; --later: #86D1D4; --later-bg: #183234;
+  --shadow: 0 10px 28px rgba(0, 0, 0, .5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 96px; }
+
+/* Kopf */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 18px 10px; display: grid; gap: 12px; }
+.top-row { display: flex; gap: 12px; align-items: flex-end; justify-content: space-between; }
+.top-actions { display: flex; gap: 8px; align-items: center; }
+.eyebrow { margin: 0; color: var(--muted); font-size: 12px; font-weight: 500; }
+h1 { margin: 0; font-size: 24px; font-weight: 750; letter-spacing: -.2px; line-height: 1.1; text-wrap: balance; }
+.btn { display: inline-flex; gap: 6px; align-items: center; justify-content: center; min-height: 44px; border: 0; border-radius: 999px; padding: 0 18px; font-weight: 700; white-space: nowrap; }
+.btn-primary { background: var(--accent); color: var(--on-accent); }
+.btn-ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+.btn:disabled { opacity: .5; cursor: default; }
+.lang { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-size: 12px; font-weight: 700; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; border-radius: 999px; background: var(--surface-2); padding: 4px; }
+.tabs button { min-height: 38px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-weight: 600; }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.tabs .count { color: var(--muted); font-weight: 500; }
+.notice { margin: 0; border-radius: 12px; background: var(--review-bg); color: var(--review); padding: 10px 12px; font-size: 13px; }
+
+/* Werkzeuge */
+.tools { display: grid; gap: 10px; margin: 6px 0 12px; }
+.search { display: flex; gap: 8px; align-items: center; min-height: 44px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 0 12px; color: var(--muted); }
+.search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); outline: 0; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.chip { flex: none; min-height: 34px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); padding: 0 12px; font-size: 13px; font-weight: 600; }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-bg); color: var(--accent-ink); }
+.chip b { font-weight: 700; margin-left: 4px; }
+
+/* Liste */
+.list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; min-height: 64px; border: 1px solid var(--line-soft); border-radius: 16px; background: var(--surface); padding: 10px 12px; text-align: left; }
+.row:hover { border-color: var(--line); }
+.row.is-urgent { border-color: var(--urgent); box-shadow: inset 4px 0 0 var(--urgent); }
+.no { min-width: 54px; border-radius: 8px; background: var(--surface-2); color: var(--ink-2); padding: 3px 6px; font-size: 12px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.row-copy { display: grid; gap: 2px; min-width: 0; }
+.row-title { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.row-meta { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; overflow: hidden; white-space: nowrap; }
+.row-side { display: flex; gap: 8px; align-items: center; }
+.new-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+.pill { border-radius: 999px; padding: 3px 9px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.pill-open { background: var(--surface-2); color: var(--ink-2); }
+.pill-doing { background: var(--doing-bg); color: var(--doing); }
+.pill-review { background: var(--review-bg); color: var(--review); }
+.pill-ok { background: var(--ok-bg); color: var(--ok); }
+.pill-hold { background: var(--hold-bg); color: var(--hold); }
+.pill-later { background: var(--later-bg); color: var(--later); }
+.pill-urgent { background: var(--urgent-bg); color: var(--urgent); }
+.from-claude { border-radius: 6px; background: var(--accent-bg); color: var(--accent-ink); padding: 1px 6px; font-size: 11px; font-weight: 700; }
+/* Tags */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tag { display: inline-flex; gap: 4px; align-items: center; min-height: 28px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); padding: 0 10px; font-size: 12px; font-weight: 600; }
+.tag button { border: 0; background: transparent; color: var(--muted); padding: 0 0 0 2px; font-size: 14px; line-height: 1; }
+.tag-input { min-width: 120px; flex: 1; min-height: 32px; border: 1px dashed var(--line); border-radius: 999px; background: transparent; padding: 0 12px; font-size: 13px; }
+.empty { border-radius: 16px; background: var(--surface); color: var(--muted); padding: 18px; text-align: center; }
+
+/* Checkliste */
+.progress { display: grid; gap: 8px; border-radius: 16px; background: var(--surface); padding: 14px; margin-bottom: 12px; }
+.bar { display: flex; height: 8px; overflow: hidden; border-radius: 999px; background: var(--surface-2); }
+.bar span { height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 12px; }
+.legend i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; vertical-align: middle; }
+.section { border-radius: 16px; background: var(--surface); margin-bottom: 8px; overflow: hidden; }
+.section > summary { display: flex; gap: 10px; align-items: center; justify-content: space-between; min-height: 52px; padding: 10px 14px; font-weight: 700; cursor: pointer; list-style: none; }
+.section > summary::-webkit-details-marker { display: none; }
+.section > summary small { color: var(--muted); font-weight: 500; }
+.section-note { margin: 0; padding: 0 14px 8px; color: var(--muted); font-size: 13px; }
+.section .list { gap: 0; padding: 0 6px 6px; }
+.section .row { border: 0; border-top: 1px solid var(--line-soft); border-radius: 0; min-height: 54px; }
+
+/* Verlauf */
+.detail { display: grid; gap: 12px; }
+.back { justify-self: start; display: inline-flex; gap: 6px; align-items: center; border: 0; background: transparent; color: var(--accent); padding: 6px 0; font-weight: 600; }
+.d-head { display: grid; gap: 10px; border-radius: 16px; background: var(--surface); padding: 16px; }
+.d-head h2 { margin: 0; font-size: 19px; font-weight: 700; line-height: 1.25; text-wrap: balance; }
+.d-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; color: var(--muted); font-size: 13px; }
+.status { display: flex; flex-wrap: wrap; gap: 6px; }
+.status button, .urgent-toggle { min-height: 34px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); padding: 0 12px; font-size: 13px; font-weight: 600; }
+.status button[aria-pressed="true"][data-v=""] { border-color: var(--ink-2); background: var(--surface-2); color: var(--ink); }
+.status button[aria-pressed="true"][data-v="doing"] { border-color: var(--doing); background: var(--doing-bg); color: var(--doing); }
+.status button[aria-pressed="true"][data-v="review"] { border-color: var(--review); background: var(--review-bg); color: var(--review); }
+.status button[aria-pressed="true"][data-v="ok"] { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
+.status button[aria-pressed="true"][data-v="hold"] { border-color: var(--hold); background: var(--hold-bg); color: var(--hold); }
+.status button[aria-pressed="true"][data-v="skip"] { border-color: var(--later); background: var(--later-bg); color: var(--later); }
+.urgent-toggle[aria-pressed="true"] { border-color: var(--urgent); background: var(--urgent-bg); color: var(--urgent); }
+.d-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.guide { display: grid; gap: 6px; border-radius: 12px; background: var(--surface-2); padding: 12px; font-size: 14px; }
+.guide ol { margin: 0; padding-left: 20px; }
+.guide p { margin: 0; }
+.chat { display: grid; gap: 10px; }
+.msg { display: grid; gap: 6px; max-width: 88%; border-radius: 16px; padding: 10px 12px; }
+.msg-user { justify-self: end; border-bottom-right-radius: 6px; background: var(--surface); border: 1px solid var(--line); }
+.msg-claude { justify-self: start; border-bottom-left-radius: 6px; background: var(--accent-bg); }
+.msg-head { display: flex; gap: 8px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.msg-claude .msg-head b { color: var(--accent-ink); }
+.msg-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.shots { display: flex; flex-wrap: wrap; gap: 6px; }
+.shot { position: relative; width: 84px; height: 84px; overflow: hidden; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.shot img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
+.shot button { position: absolute; top: 3px; right: 3px; width: 24px; height: 24px; border: 0; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; font-size: 14px; line-height: 1; }
+.shot-pdf a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; height: 100%; padding: 6px; color: var(--ink-2); text-decoration: none; text-align: center; }
+.shot-pdf b { padding: 2px 6px; border-radius: 4px; background: var(--urgent); color: #fff; font-size: 11px; letter-spacing: .04em; }
+.shot-pdf span { font-size: 10px; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; }
+.shot.pending { display: grid; place-items: center; color: var(--muted); font-size: 12px; }
+.composer { position: sticky; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); padding: 10px; box-shadow: var(--shadow); }
+.composer textarea { width: 100%; min-height: 64px; max-height: 40vh; border: 0; background: transparent; resize: vertical; outline: 0; }
+.composer-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.hint { margin: 0; color: var(--muted); font-size: 12px; }
+.saved { color: var(--muted); font-size: 12px; }
+.saved.err { color: var(--urgent); }
+
+/* Neue Meldung */
+.form { display: grid; gap: 12px; border-radius: 16px; background: var(--surface); padding: 16px; }
+.field { display: grid; gap: 6px; }
+.field > span { color: var(--muted); font-size: 12px; font-weight: 500; }
+.check { display: flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 600; }
+.check input { width: 20px; height: 20px; accent-color: var(--urgent); }
+.input { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 10px 12px; }
+textarea.input { min-height: 110px; resize: vertical; }
+.form-actions { display: flex; gap: 8px; }
+
+/* Bild gross */
+.lightbox { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0,0,0,.82); padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.lightbox img { max-width: 100%; max-height: 100%; border-radius: 12px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="top-row">
+      <div>
+        <p class="eyebrow" id="eyebrow"></p>
+        <h1 id="heading">Feedback</h1>
+      </div>
+      <div class="top-actions">
+        <button class="lang" id="lang-btn" type="button"></button>
+        <button class="btn btn-primary" id="new-btn" type="button"></button>
+      </div>
+    </div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button aria-selected="true" id="tab-reports" role="tab" type="button"><span id="tab-reports-label"></span> <span class="count" id="count-reports"></span></button>
+      <button aria-selected="false" id="tab-check" role="tab" type="button"><span id="tab-check-label"></span> <span class="count" id="count-check"></span></button>
+    </div>
+    <p class="notice" id="notice" hidden></p>
+  </header>
+
+  <main id="view"></main>
+</div>
+<input accept="image/*,application/pdf,.pdf" hidden id="file-input" multiple type="file">
+
+<script>
+// ===================== KONFIGURATION (beim Einrichten anpassen) =====================
+// Name des Projekts (Kopfzeile und Browser-Tab).
+const PROJECT_NAME = "Mein Projekt";
+// Kleine Zeile über dem Titel, z. B. "Beta" oder "Version 2". Leer lassen = nur Projektname.
+const PROJECT_TAGLINE = "";
+// Sprache, mit der das Tool startet ("de" oder "en"). Jede Person kann oben umschalten.
+const DEFAULT_LANG = "de";
+// Bereiche, aus denen man bei einer neuen Meldung wählt. Der erste ist die Vorgabe.
+const AREAS = ["Allgemein", "Bedienung", "Aussehen", "Daten", "Sonstiges"];
+// Optionale Checkliste (Prüfpunkte zum Abhaken). Leeres Array = kein Reiter „Checkliste“.
+// Format: { id: "1", title: "Abschnitt", note: "optional", items: [
+//   { id: "1.1", title: "Was geprüft wird", steps: ["Schritt 1", "Schritt 2"], expect: "Was richtig ist" } ] }
+const CHECKLIST = [];
+// =====================================================================================
+
+// Texte der Oberfläche
+const TEXT = {
+  de: {
+    locale: "de-CH", feedback: "Feedback", newReport: "+ Neue Meldung", reports: "Meldungen", checklist: "Checkliste", open: "offen",
+    status: { "": "Offen", doing: "In Arbeit", review: "Bitte prüfen", ok: "Erledigt", hold: "Pausiert", skip: "Später" },
+    fActive: "Offen", fReview: "Bitte prüfen", fReply: "Antwort von Claude", fParked: "Pausiert & später", fDone: "Erledigt", fAll: "Alle",
+    search: "Suchen (Nummer, Titel, Text)", noMatch: "Keine Meldungen für diesen Filter.", noReports: "Noch keine Meldungen. Tippe oben auf „+ Neue Meldung“.",
+    report: "Meldung", you: "Du", claude: "Claude", fromClaude: "von Claude", urgent: "Dringend", urgentPill: "dringend",
+    newReply: "Neue Antwort von Claude", newReplyShort: "neue Antwort", done: "erledigt", created: "erstellt",
+    allReports: "Alle Meldungen", back: "← ", cancel: "← Abbrechen", howTo: "So gehst du vor", expect: "Richtig ist: ",
+    noEntries: "Noch keine Einträge. Schreib unten, was dir aufgefallen ist.",
+    composer: "Antwort oder neue Beobachtung … (Bild: einfügen mit Ctrl+V)", addImage: "+ Bild/PDF", send: "Senden", removeImage: "Anhang entfernen",
+    imagesEditorsOnly: "Anhänge nur mit Bearbeitungsrecht", loading: "lädt …", screenshot: "Screenshot", openPdf: "PDF öffnen",
+    wrongType: "Nur Bilder und PDF möglich. ZIP und andere Dateien bitte als Link in den Text einfügen.",
+    title: "Titel", titlePh: "Kurz, worum es geht", area: "Bereich", tagsField: "Tags (freiwillig, mit Komma getrennt)", tagsPh: "z. B. design, wichtig",
+    textField: "Was ist passiert? Was wünschst du dir?", textPh: "Was hast du gemacht, was ist passiert, was hättest du erwartet?",
+    shotHint: "Screenshots: hier Ctrl+V oder „+ Bild/PDF“ (auch PDF bis 20 MB). Am Handy kannst du über das Mikrofon der Tastatur diktieren.",
+    shotHintNoAssets: "Bilder anhängen können nur Personen mit Bearbeitungsrecht. Am Handy kannst du über das Mikrofon der Tastatur diktieren.",
+    submit: "Melden", addTag: "+ Tag", removeTag: "Tag entfernen: ",
+    saving: "speichert …", saved: "gespeichert", localOnly: "nur in diesem Browser", full: "Speicher voll", notSaved: "Nicht gespeichert – bitte nochmals senden.",
+    tooLarge: "Datei zu gross (max. 20 MB)", uploadFailed: "Datei konnte nicht hochgeladen werden.",
+    noStore: "Speichern ist hier nicht verfügbar. Bitte angemeldet auf claude.ai öffnen.", lost: "Verbindung zum Speicher unterbrochen – bitte Seite neu laden.",
+    switchTo: "Switch to English"
+  },
+  en: {
+    locale: "en-GB", feedback: "Feedback", newReport: "+ New report", reports: "Reports", checklist: "Checklist", open: "open",
+    status: { "": "Open", doing: "In progress", review: "Please check", ok: "Done", hold: "Paused", skip: "Later" },
+    fActive: "Open", fReview: "Please check", fReply: "Reply from Claude", fParked: "Paused & later", fDone: "Done", fAll: "All",
+    search: "Search (number, title, text)", noMatch: "No reports for this filter.", noReports: "No reports yet. Tap “+ New report” above.",
+    report: "Report", you: "You", claude: "Claude", fromClaude: "from Claude", urgent: "Urgent", urgentPill: "urgent",
+    newReply: "New reply from Claude", newReplyShort: "new reply", done: "done", created: "created",
+    allReports: "All reports", back: "← ", cancel: "← Cancel", howTo: "How to check", expect: "Correct is: ",
+    noEntries: "Nothing here yet. Write below what you noticed.",
+    composer: "Reply or new observation … (image: paste with Ctrl+V)", addImage: "+ Image/PDF", send: "Send", removeImage: "Remove attachment",
+    imagesEditorsOnly: "Only people with edit access can attach files", loading: "loading …", screenshot: "Screenshot", openPdf: "Open PDF",
+    wrongType: "Only images and PDF. Please paste ZIP and other files as a link in the text.",
+    title: "Title", titlePh: "Briefly, what it is about", area: "Area", tagsField: "Tags (optional, comma separated)", tagsPh: "e.g. design, important",
+    textField: "What happened? What would you like?", textPh: "What did you do, what happened, what did you expect?",
+    shotHint: "Screenshots: paste here with Ctrl+V or “+ Image/PDF” (PDF up to 20 MB too). On a phone you can dictate with the keyboard’s microphone.",
+    shotHintNoAssets: "Only people with edit access can attach images. On a phone you can dictate with the keyboard’s microphone.",
+    submit: "Report", addTag: "+ Tag", removeTag: "Remove tag: ",
+    saving: "saving …", saved: "saved", localOnly: "only in this browser", full: "Storage full", notSaved: "Not saved – please send again.",
+    tooLarge: "File too large (max. 20 MB)", uploadFailed: "File could not be uploaded.",
+    noStore: "Saving is not available here. Please open it signed in on claude.ai.", lost: "Connection to storage lost – please reload the page.",
+    switchTo: "Auf Deutsch umschalten"
+  }
+};
+
+// Status (gespeichert als Kürzel). „Erledigt“ setzt nur ein Mensch; „Pausiert“ und „Später“ lässt Claude liegen.
+const STATUS_ORDER = ["", "doing", "review", "ok", "hold", "skip"];
+const PILL_CLASS = { "": "pill-open", doing: "pill-doing", review: "pill-review", ok: "pill-ok", hold: "pill-hold", skip: "pill-later" };
+const PARKED = ["ok", "hold", "skip"];
+// Alte Kürzel aus früheren Fassungen: Fehler → Offen, Nicht testbar → Später
+const normStatus = (s) => (s === "fail" ? "" : s === "block" ? "skip" : STATUS_ORDER.includes(s) ? s : "");
+const HAS_CHECKLIST = CHECKLIST.length > 0;
+const ALL_CHECK_IDS = CHECKLIST.flatMap((s) => s.items.map((i) => i.id));
+const NEW = "new-report";
+let waiting = false; // neue Daten kamen während des Tippens – nach dem Tippen zeichnen
+
+const state = {};
+let db = null, assets = null, col = null;
+let tab = "reports", openId = null, filters = ["active"], query = "", creating = false, tagFilters = [];
+const pending = {};
+const queues = {};
+
+// UI-Komfort nur in diesem Browser: Entwürfe, gelesene Antworten, Reiter, Filter, Sprache
+const store = {
+  get(key, fallback) { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch (e) { return fallback; } },
+  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} }
+};
+const drafts = store.get("fd-drafts", {});
+const seen = store.get("fd-seen", {});
+// Filter mit Mehrfachauswahl; leere Liste = alle. Ältere Fassungen speicherten einen einzelnen Wert.
+const asList = (v) => (Array.isArray(v) ? v : v && v !== "all" ? [v] : []);
+filters = asList(store.get("fd-filter", ["active"]));
+tab = HAS_CHECKLIST ? store.get("fd-tab", "reports") : "reports";
+tagFilters = asList(store.get("fd-tag", []));
+let lang = store.get("fd-lang", DEFAULT_LANG);
+if (!TEXT[lang]) lang = "de";
+const t = (key) => TEXT[lang][key];
+const statusLabel = (s) => TEXT[lang].status[s];
+
+const $ = (id) => document.getElementById(id);
+const h = (tag, attrs = {}, ...kids) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "text") el.textContent = v;
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid);
+  return el;
+};
+const isReport = (id) => id.startsWith("M-");
+// Dokument-ID: die gespeicherte, falls bekannt (ältere Fassungen nutzen andere IDs), sonst neu
+const docId = (id) => rowOf(id).docId || (isReport(id) ? id : "p" + id.replace(/\./g, "-"));
+const rowOf = (id) => state[id] || { status: "", thread: [], tags: [] };
+const tagsOf = (id) => (Array.isArray(rowOf(id).tags) ? rowOf(id).tags : []);
+const isActive = (id) => !PARKED.includes(rowOf(id).status || "");
+const isUrgent = (id) => rowOf(id).urgent === true;
+const norm = (s) => String(s || "").replace(/\s+/g, " ").trim();
+const cleanTag = (s) => norm(s).replace(/^#/, "").slice(0, 30);
+function allTags() {
+  const set = new Set();
+  for (const id of Object.keys(state)) for (const tg of tagsOf(id)) set.add(tg);
+  return [...set].sort((a, b) => a.localeCompare(b, lang));
+}
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function when(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  return d.toLocaleDateString(t("locale"), { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString(t("locale"), { hour: "2-digit", minute: "2-digit" });
+}
+
+// Verlauf; alte Felder (comment/reply früherer Fassungen) nur, wenn sie nicht schon im Verlauf stehen.
+function historyOf(row) {
+  // Reihenfolge wie gespeichert: Nachrichten werden nur angehängt, ihre Uhrzeiten können ungenau sein.
+  const thread = Array.isArray(row.thread) ? [...row.thread] : [];
+  const texts = new Set(thread.map((e) => e.by + ":" + norm(e.text)));
+  const list = [];
+  if ((norm(row.comment) || (row.shots || []).length) && !texts.has("user:" + norm(row.comment))) list.push({ id: "legacy-user", by: "user", text: row.comment || "", shots: row.shots || [], at: "" });
+  if (norm(row.reply) && !texts.has("claude:" + norm(row.reply))) list.push({ id: "legacy-claude", by: "claude", text: row.reply, shots: [], at: "" });
+  return list.concat(thread);
+}
+const lastOf = (id) => { const list = historyOf(rowOf(id)); return list[list.length - 1]; };
+const hasNewReply = (id) => { const last = lastOf(id); return Boolean(last && last.by === "claude" && last.at && (!seen[id] || seen[id] < last.at)); };
+const waitsForYou = (id) => { const last = lastOf(id); return Boolean(last && last.by === "claude" && isActive(id)); };
+
+// Reihenfolge: dringend und noch nicht abgelegt zuerst, dann nach letzter Aktivität
+function reportIds() {
+  const activity = (id) => String((lastOf(id) || {}).at || state[id].createdAt || "");
+  const top = (id) => (isUrgent(id) && isActive(id) ? 1 : 0);
+  return Object.keys(state).filter((id) => isReport(id) && state[id].kind === "report")
+    .sort((a, b) => top(b) - top(a) || activity(b).localeCompare(activity(a)));
+}
+const label = (id) => isReport(id) ? (typeof rowOf(id).no === "number" ? "M-" + String(rowOf(id).no).padStart(3, "0") : "M-…") : id;
+function checkItem(id) {
+  for (const s of CHECKLIST) for (const it of s.items) if (it.id === id) return { section: s, item: it };
+  return null;
+}
+
+// ---------- Speichern ----------
+// Neue Einträge werden ganz geschrieben, bestehende nur in den geänderten Feldern (andere Felder bleiben unberührt).
+function write(id, patch) {
+  const exists = Boolean(state[id] && state[id].stored);
+  const updatedAt = new Date().toISOString();
+  state[id] = { ...rowOf(id), ...patch, updatedAt };
+  render();
+  if (!col) { setSaved(t("localOnly")); return Promise.resolve(); }
+  setSaved(t("saving"));
+  let body;
+  if (exists) body = { ...patch, updatedAt };
+  else {
+    const r = state[id];
+    body = { item: id, status: r.status || "", thread: r.thread || [], tags: Array.isArray(r.tags) ? r.tags : [], updatedAt };
+    for (const key of ["kind", "title", "area", "createdAt", "no", "urgent", "from"]) if (r[key] !== undefined) body[key] = r[key];
+  }
+  const ref = col.doc(docId(id));
+  queues[id] = (queues[id] || Promise.resolve()).then(() => (exists ? ref.update(body) : ref.set(body))).then(
+    () => { if (state[id]) state[id].stored = true; setSaved(t("saved")); },
+    (err) => setSaved(err && err.code === "quota_exceeded" ? t("full") : t("notSaved"), true)
+  );
+  return queues[id];
+}
+function setSaved(text, err) {
+  const el = $("saved");
+  if (el) { el.textContent = text; el.className = err ? "saved err" : "saved"; }
+}
+
+// Anhänge: Bilder und PDF. ZIP & Co. nimmt der Speicher nicht an, dafür ein Link im Text.
+const isPdfFile = (f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name || "");
+const isAllowedFile = (f) => f.type.startsWith("image/") || isPdfFile(f);
+const isPdf = (shot) => shot.type === "pdf";
+
+async function upload(id, blob) {
+  if (!assets) return;
+  if (!isAllowedFile(blob)) { setSaved(t("wrongType"), true); return; }
+  pending[id] = (pending[id] || 0) + 1; render();
+  try {
+    const pdf = isPdfFile(blob);
+    const res = await assets.upload(pdf && blob.type !== "application/pdf" ? new Blob([blob], { type: "application/pdf" }) : blob);
+    const d = drafts[id] || (drafts[id] = { text: "", shots: [] });
+    d.shots.push(pdf ? { id: res.id, type: "pdf", name: String(blob.name || "PDF").slice(0, 80) } : { id: res.id }); store.set("fd-drafts", drafts);
+  } catch (err) {
+    setSaved(err && err.code === "too_large" ? t("tooLarge") : t("uploadFailed"), true);
+  }
+  pending[id]--; render();
+}
+const activeTarget = () => (creating ? NEW : openId);
+document.addEventListener("paste", (ev) => {
+  const target = activeTarget();
+  if (!assets || !target) return;
+  const files = [...(ev.clipboardData ? ev.clipboardData.items : [])].filter((i) => i.kind === "file").map((i) => i.getAsFile()).filter(Boolean);
+  if (!files.length) return;
+  ev.preventDefault();
+  for (const f of files) upload(target, f);
+});
+$("file-input").addEventListener("change", (ev) => {
+  const target = activeTarget();
+  if (target) for (const f of ev.target.files || []) upload(target, f);
+  ev.target.value = "";
+});
+
+// ---------- Darstellung ----------
+function render() {
+  document.documentElement.lang = lang;
+  $("new-btn").textContent = t("newReport");
+  $("lang-btn").textContent = lang === "de" ? "EN" : "DE";
+  $("lang-btn").setAttribute("aria-label", t("switchTo"));
+  $("tab-reports-label").textContent = t("reports");
+  $("tab-check-label").textContent = t("checklist");
+  const reports = reportIds();
+  const openReports = reports.filter(isActive).length;
+  $("count-reports").textContent = reports.length ? "· " + openReports + " " + t("open") : "";
+  if (HAS_CHECKLIST) {
+    const done = ALL_CHECK_IDS.filter((id) => rowOf(id).status === "ok").length;
+    $("count-check").textContent = "· " + done + "/" + ALL_CHECK_IDS.length;
+  }
+  $("tab-reports").setAttribute("aria-selected", String(tab === "reports"));
+  $("tab-check").setAttribute("aria-selected", String(tab === "check"));
+  $("new-btn").hidden = creating;
+
+  const view = $("view");
+  const focusId = document.activeElement && document.activeElement.id;
+  const caret = document.activeElement && document.activeElement.selectionStart;
+  view.replaceChildren(creating ? renderNew() : openId ? renderDetail(openId) : tab === "reports" ? renderReports(reports) : renderChecklist());
+  if (focusId && $(focusId)) { const el = $(focusId); el.focus(); if (typeof caret === "number" && el.setSelectionRange) el.setSelectionRange(caret, caret); }
+}
+
+function rowButton(id, title, metaParts) {
+  const row = rowOf(id);
+  const st = row.status || "";
+  return h("li", {}, h("button", { class: "row" + (isUrgent(id) && isActive(id) ? " is-urgent" : ""), type: "button", onclick: () => open(id) },
+    h("span", { class: "no", text: label(id) }),
+    h("span", { class: "row-copy" },
+      h("span", { class: "row-title", text: title }),
+      h("span", { class: "row-meta" }, row.from === "claude" ? h("span", { class: "from-claude", text: t("fromClaude") }) : null, metaParts.filter(Boolean).join(" · "))
+    ),
+    h("span", { class: "row-side" },
+      hasNewReply(id) ? h("span", { class: "new-dot", title: t("newReply") }) : null,
+      isUrgent(id) && isActive(id) ? h("span", { class: "pill pill-urgent", text: t("urgentPill") }) : null,
+      h("span", { class: "pill " + PILL_CLASS[st], text: statusLabel(st) }))
+  ));
+}
+
+function renderReports(ids) {
+  const counts = {
+    active: ids.filter((id) => ["", "doing"].includes(rowOf(id).status || "")).length,
+    review: ids.filter((id) => rowOf(id).status === "review").length,
+    reply: ids.filter(waitsForYou).length,
+    parked: ids.filter((id) => ["hold", "skip"].includes(rowOf(id).status)).length,
+    done: ids.filter((id) => rowOf(id).status === "ok").length,
+    all: ids.length
+  };
+  filters = filters.filter((f) => f in counts && f !== "all");
+  const tags = [...new Set(ids.flatMap(tagsOf))].sort((a, b) => a.localeCompare(b, lang));
+  tagFilters = tagFilters.filter((tg) => tags.includes(tg));
+  const q = norm(query).toLowerCase();
+  const matches = (f, id) => {
+    const st = rowOf(id).status || "";
+    if (f === "active") return st === "" || st === "doing";
+    if (f === "review") return st === "review";
+    if (f === "reply") return waitsForYou(id);
+    if (f === "parked") return st === "hold" || st === "skip";
+    if (f === "done") return st === "ok";
+    return true;
+  };
+  // Mehrere gewählte Filter: ein Eintrag passt, wenn er zu einem davon passt
+  const passes = (id) => !filters.length || filters.some((f) => matches(f, id));
+  const shown = ids.filter((id) => {
+    const r = rowOf(id);
+    const tagPass = !tagFilters.length || tagFilters.some((tg) => tagsOf(id).includes(tg));
+    return passes(id) && tagPass && (!q || (label(id) + " " + (r.title || "") + " " + (r.area || "") + " " + tagsOf(id).join(" ") + " " + historyOf(r).map((e) => e.text).join(" ")).toLowerCase().includes(q));
+  });
+  const toggle = (list, value) => (list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
+  const chip = (value, text) => h("button", { class: "chip", type: "button",
+    "aria-pressed": String(value === "all" ? !filters.length : filters.includes(value)),
+    onclick: () => { filters = value === "all" ? [] : toggle(filters, value); store.set("fd-filter", filters); render(); } }, text, h("b", { text: String(counts[value]) }));
+  return h("section", {},
+    h("div", { class: "tools" },
+      h("label", { class: "search" }, "⌕", h("input", { id: "q", type: "search", placeholder: t("search"), value: query, oninput: (e) => { query = e.target.value; render(); } })),
+      h("div", { class: "chips", role: "group" }, chip("active", t("fActive")), chip("review", t("fReview")), chip("reply", t("fReply")), chip("parked", t("fParked")), chip("done", t("fDone")), chip("all", t("fAll"))),
+      tags.length ? h("div", { class: "chips", role: "group" }, tags.map((tg) => h("button", { class: "chip", type: "button", "aria-pressed": String(tagFilters.includes(tg)), onclick: () => { tagFilters = toggle(tagFilters, tg); store.set("fd-tag", tagFilters); render(); } }, "#" + tg))) : null
+    ),
+    shown.length
+      ? h("ul", { class: "list" }, shown.map((id) => {
+          const r = rowOf(id); const last = lastOf(id);
+          return rowButton(id, r.title || t("report"), [r.area || AREAS[0], tagsOf(id).map((tg) => "#" + tg).join(" "), last ? (last.by === "claude" ? t("claude") : t("you")) + " " + when(last.at) : ""]);
+        }))
+      : h("p", { class: "empty", text: ids.length ? t("noMatch") : t("noReports") })
+  );
+}
+
+function renderChecklist() {
+  const counts = { "": 0, doing: 0, review: 0, ok: 0, hold: 0, skip: 0 };
+  for (const id of ALL_CHECK_IDS) counts[rowOf(id).status || ""]++;
+  const total = ALL_CHECK_IDS.length;
+  const color = { doing: "var(--doing)", review: "var(--review)", ok: "var(--ok)", hold: "var(--hold)", skip: "var(--later)" };
+  const openSections = store.get("fd-sections", []);
+  return h("section", {},
+    h("div", { class: "progress" },
+      h("div", { class: "bar", "aria-hidden": "true" }, Object.keys(color).map((k) => h("span", { style: "width:" + (counts[k] / total * 100) + "%;background:" + color[k] }))),
+      h("div", { class: "legend" }, STATUS_ORDER.map((k) => h("span", {}, k ? h("i", { style: "background:" + color[k] }) : null, counts[k] + " " + statusLabel(k))))
+    ),
+    CHECKLIST.map((s) => {
+      const ids = s.items.map((i) => i.id);
+      const doneCount = ids.filter((id) => rowOf(id).status === "ok").length;
+      const det = h("details", { class: "section", open: openSections.includes(s.id) || null },
+        h("summary", {}, h("span", {}, s.id + " · " + s.title), h("small", { text: doneCount + "/" + ids.length + " " + t("done") })),
+        s.note ? h("p", { class: "section-note", text: s.note }) : null,
+        h("ul", { class: "list" }, s.items.map((it) => rowButton(it.id, it.title, [hasNewReply(it.id) ? t("newReplyShort") : ""])))
+      );
+      det.addEventListener("toggle", () => {
+        const list = store.get("fd-sections", []).filter((x) => x !== s.id);
+        if (det.open) list.push(s.id);
+        store.set("fd-sections", list);
+      });
+      return det;
+    })
+  );
+}
+
+function shotEl(shot, removable, onRemove) {
+  const src = "/_blob/" + shot.id;
+  return h("div", { class: "shot" + (isPdf(shot) ? " shot-pdf" : "") },
+    isPdf(shot)
+      ? h("a", { href: src, target: "_blank", rel: "noopener", title: t("openPdf") + ": " + (shot.name || "PDF") }, h("b", { text: "PDF" }), h("span", { text: shot.name || "PDF" }))
+      : h("img", { src, alt: t("screenshot"), loading: "lazy", onclick: () => lightbox(src) }),
+    removable ? h("button", { type: "button", "aria-label": t("removeImage"), onclick: onRemove, text: "×" }) : null
+  );
+}
+
+function removeShot(d, s) {
+  d.shots = d.shots.filter((x) => x.id !== s.id); store.set("fd-drafts", drafts); render();
+  if (assets) assets.delete(s.id).catch(() => {});
+}
+
+function composer(id) {
+  const d = drafts[id] || (drafts[id] = { text: "", shots: [] });
+  const busy = (pending[id] || 0) > 0;
+  return h("div", { class: "composer" },
+    h("textarea", { id: "draft-" + id.replace(/[^a-z0-9]/gi, "_"), placeholder: t("composer"), oninput: (e) => { d.text = e.target.value; store.set("fd-drafts", drafts); } }, d.text),
+    d.shots.length || busy ? h("div", { class: "shots" },
+      d.shots.map((s) => shotEl(s, true, () => removeShot(d, s))),
+      Array.from({ length: pending[id] || 0 }, () => h("div", { class: "shot pending", text: t("loading") }))
+    ) : null,
+    h("div", { class: "composer-row" },
+      assets ? h("button", { class: "btn btn-ghost", type: "button", onclick: () => $("file-input").click() }, t("addImage")) : h("span", { class: "hint", text: t("imagesEditorsOnly") }),
+      h("span", { class: "saved", id: "saved" }),
+      h("button", { class: "btn btn-primary", type: "button", disabled: busy || null, onclick: () => send(id) }, t("send"))
+    )
+  );
+}
+
+// Eine neue Nachricht öffnet einen abgelegten Eintrag nicht von selbst wieder; der Status bleibt, wie der Mensch ihn gesetzt hat.
+function send(id) {
+  const d = drafts[id] || { text: "", shots: [] };
+  if (!norm(d.text) && !d.shots.length) return;
+  const thread = [...(rowOf(id).thread || []), { id: newId(), by: "user", text: d.text.trim(), shots: d.shots, at: new Date().toISOString() }];
+  drafts[id] = { text: "", shots: [] }; store.set("fd-drafts", drafts);
+  write(id, { thread });
+}
+
+function renderDetail(id) {
+  const row = rowOf(id);
+  const check = isReport(id) ? null : checkItem(id);
+  const title = isReport(id) ? row.title || t("report") : check ? check.item.title : id;
+  const list = historyOf(row);
+  const last = list[list.length - 1];
+  if (last && last.at && (!seen[id] || seen[id] < last.at)) { seen[id] = last.at; store.set("fd-seen", seen); }
+  return h("section", { class: "detail" },
+    h("button", { class: "back", type: "button", onclick: () => { openId = null; render(); window.scrollTo({ top: 0 }); } }, t("back"), isReport(id) ? t("allReports") : t("checklist")),
+    h("div", { class: "d-head" },
+      h("div", { class: "d-meta" },
+        h("span", { class: "no", text: label(id) }),
+        row.from === "claude" ? h("span", { class: "from-claude", text: t("fromClaude") }) : null,
+        isReport(id) ? (row.area || AREAS[0]) : check ? check.section.title : "",
+        row.createdAt ? t("created") + " " + when(row.createdAt) : ""),
+      h("h2", { text: title }),
+      h("div", { class: "status", role: "group" },
+        STATUS_ORDER.map((v) => h("button", { type: "button", "data-v": v, "aria-pressed": String((row.status || "") === v), onclick: () => write(id, { status: v }) }, statusLabel(v)))
+      ),
+      h("div", { class: "d-row" },
+        h("button", { class: "urgent-toggle", type: "button", "aria-pressed": String(isUrgent(id)), onclick: () => write(id, { urgent: !isUrgent(id) }) }, "! " + t("urgent")),
+        tagEditor(id)
+      ),
+      check && ((check.item.steps || []).length || check.item.expect) ? h("div", { class: "guide" },
+        (check.item.steps || []).length ? h("p", {}, h("b", { text: t("howTo") })) : null,
+        (check.item.steps || []).length ? h("ol", {}, check.item.steps.map((s) => h("li", { text: s }))) : null,
+        check.item.expect ? h("p", {}, h("b", { text: t("expect") }), check.item.expect) : null
+      ) : null
+    ),
+    h("div", { class: "chat" }, list.length ? list.map((e) => h("article", { class: "msg " + (e.by === "claude" ? "msg-claude" : "msg-user") },
+      h("div", { class: "msg-head" }, h("b", { text: e.by === "claude" ? t("claude") : t("you") }), h("span", { text: when(e.at) })),
+      e.text ? h("p", { class: "msg-text", text: e.text }) : null,
+      (e.shots || []).length ? h("div", { class: "shots" }, e.shots.map((s) => shotEl(s, false))) : null
+    )) : h("p", { class: "hint", text: t("noEntries") })),
+    composer(id)
+  );
+}
+
+// Tags: × entfernt, Eingabe + Enter (oder Komma) fügt hinzu; Vorschläge aus allen Meldungen.
+function tagEditor(id) {
+  const current = tagsOf(id);
+  const add = (input) => {
+    const next = input.value.split(",").map(cleanTag).filter(Boolean).filter((tg) => !current.includes(tg));
+    input.value = "";
+    if (next.length) write(id, { tags: [...current, ...new Set(next)] });
+  };
+  return h("div", { class: "tags" },
+    current.map((tg) => h("span", { class: "tag" }, "#" + tg, h("button", { type: "button", "aria-label": t("removeTag") + tg, onclick: () => write(id, { tags: current.filter((x) => x !== tg) }) }, "×"))),
+    h("input", { class: "tag-input", id: "tag-" + id.replace(/[^a-z0-9]/gi, "_"), list: "tag-list", placeholder: t("addTag"), maxlength: "30",
+      onkeydown: (e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(e.target); } },
+      onblur: (e) => { if (norm(e.target.value)) add(e.target); } }),
+    h("datalist", { id: "tag-list" }, allTags().filter((tg) => !current.includes(tg)).map((tg) => h("option", { value: tg })))
+  );
+}
+
+function renderNew() {
+  const d = drafts[NEW] || (drafts[NEW] = { text: "", shots: [], title: "", area: AREAS[0] });
+  const busy = (pending[NEW] || 0) > 0;
+  const save = (key) => (e) => { d[key] = e.target.type === "checkbox" ? e.target.checked : e.target.value; store.set("fd-drafts", drafts); };
+  if (!AREAS.includes(d.area)) d.area = AREAS[0];
+  return h("form", { class: "form", onsubmit: (ev) => { ev.preventDefault(); createReport(); } },
+    h("button", { class: "back", type: "button", onclick: () => { creating = false; render(); } }, t("cancel")),
+    h("label", { class: "field" }, h("span", { text: t("title") }), h("input", { class: "input", id: "new-title", maxlength: "120", placeholder: t("titlePh"), value: d.title || "", oninput: save("title"), required: true })),
+    AREAS.length > 1 ? h("label", { class: "field" }, h("span", { text: t("area") }), h("select", { class: "input", id: "new-area", onchange: save("area") }, AREAS.map((a) => h("option", { value: a, selected: d.area === a || null }, a)))) : null,
+    h("label", { class: "field" }, h("span", { text: t("tagsField") }), h("input", { class: "input", id: "new-tags", list: "tag-list-new", placeholder: t("tagsPh"), value: d.tags || "", oninput: save("tags") }), h("datalist", { id: "tag-list-new" }, allTags().map((tg) => h("option", { value: tg })))),
+    h("label", { class: "field" }, h("span", { text: t("textField") }), h("textarea", { class: "input", id: "new-text", placeholder: t("textPh"), oninput: save("text") }, d.text || "")),
+    h("label", { class: "check" }, h("input", { type: "checkbox", id: "new-urgent", checked: d.urgent || null, onchange: save("urgent") }), t("urgent")),
+    d.shots.length || busy ? h("div", { class: "shots" },
+      d.shots.map((s) => shotEl(s, true, () => removeShot(d, s))),
+      Array.from({ length: pending[NEW] || 0 }, () => h("div", { class: "shot pending", text: t("loading") }))
+    ) : null,
+    h("p", { class: "hint", text: assets ? t("shotHint") : t("shotHintNoAssets") }),
+    h("div", { class: "form-actions" },
+      h("button", { class: "btn btn-primary", type: "submit", disabled: busy || null }, t("submit")),
+      assets ? h("button", { class: "btn btn-ghost", type: "button", onclick: () => $("file-input").click() }, t("addImage")) : null,
+      h("span", { class: "saved", id: "saved" })
+    )
+  );
+}
+
+function createReport() {
+  const d = drafts[NEW] || {};
+  const title = norm(d.title);
+  if (!title) { $("new-title") && $("new-title").focus(); return; }
+  const now = new Date().toISOString();
+  const taken = Object.keys(state).filter(isReport).map((id) => state[id].no).filter((n) => typeof n === "number");
+  const no = (taken.length ? Math.max(...taken) : 0) + 1;
+  const id = "M-" + newId();
+  const thread = norm(d.text) || (d.shots || []).length ? [{ id: newId(), by: "user", text: (d.text || "").trim(), shots: d.shots || [], at: now }] : [];
+  const tags = [...new Set(String(d.tags || "").split(",").map(cleanTag).filter(Boolean))];
+  drafts[NEW] = { text: "", shots: [], title: "", area: AREAS[0], tags: "", urgent: false }; store.set("fd-drafts", drafts);
+  state[id] = { status: "", thread, tags, kind: "report", title, area: d.area || AREAS[0], createdAt: now, no, urgent: d.urgent === true };
+  creating = false; openId = id; tab = "reports";
+  write(id, {});
+}
+
+function open(id) { openId = id; creating = false; render(); window.scrollTo({ top: 0 }); }
+
+function lightbox(src) {
+  const box = h("div", { class: "lightbox", role: "dialog", onclick: () => box.remove() }, h("img", { src, alt: t("screenshot") }));
+  document.body.append(box);
+}
+
+$("tab-reports").addEventListener("click", () => { tab = "reports"; openId = null; creating = false; store.set("fd-tab", tab); render(); });
+$("tab-check").addEventListener("click", () => { tab = "check"; openId = null; creating = false; store.set("fd-tab", tab); render(); });
+$("new-btn").addEventListener("click", () => { creating = true; openId = null; render(); $("new-title") && $("new-title").focus(); });
+$("lang-btn").addEventListener("click", () => { lang = lang === "de" ? "en" : "de"; store.set("fd-lang", lang); render(); });
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") { const lb = document.querySelector(".lightbox"); if (lb) lb.remove(); } });
+
+document.addEventListener("focusout", () => setTimeout(() => { if (waiting && !(document.activeElement && /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName))) { waiting = false; render(); } }, 0));
+
+function notice(text) { $("notice").textContent = text; $("notice").hidden = !text; }
+
+async function connect() {
+  const claude = window.claude;
+  if (!claude || !claude.use) { notice(t("noStore")); return; }
+  [db, assets] = await Promise.all([claude.use("db"), claude.use("assets")]);
+  if (!db) { notice(t("noStore")); render(); return; }
+  col = db.collection("checks");
+  col.onSnapshot((snap) => {
+    for (const d of snap.docs) {
+      const data = d.data(); if (!data || !data.item) continue;
+      state[data.item] = {
+        stored: true, docId: d.id,
+        status: normStatus(data.status || ""),
+        thread: Array.isArray(data.thread) ? data.thread : [],
+        tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
+        urgent: data.urgent === true,
+        from: data.from === "claude" ? "claude" : undefined,
+        comment: typeof data.comment === "string" ? data.comment : "",
+        shots: Array.isArray(data.shots) ? data.shots : [],
+        reply: typeof data.reply === "string" ? data.reply : "",
+        updatedAt: data.updatedAt
+      };
+      if (data.kind === "report") Object.assign(state[data.item], { kind: "report", title: String(data.title || t("report")), area: String(data.area || AREAS[0]), createdAt: data.createdAt, no: typeof data.no === "number" ? data.no : undefined });
+    }
+    // Während man tippt nicht neu zeichnen (sonst springt der Cursor); sonst sofort aktualisieren.
+    const typing = document.activeElement && /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName);
+    if (typing) waiting = true; else render();
+  }, () => notice(t("lost")));
+}
+
+// Kopf und Reiter aus der Konfiguration
+document.title = PROJECT_NAME + " · Feedback";
+$("eyebrow").textContent = PROJECT_TAGLINE ? PROJECT_NAME + " · " + PROJECT_TAGLINE : PROJECT_NAME;
+$("tabs").hidden = !HAS_CHECKLIST;
+
+// Direktlink auf eine Meldung oder einen Prüfpunkt: …#M-xxxx bzw. #p1-1
+const hash = (location.hash || "").slice(1);
+if (hash) { openId = hash.startsWith("M-") ? hash : HAS_CHECKLIST && hash.startsWith("p") ? hash.slice(1).replace(/-/g, ".") : null; }
+render();
+connect();
+</script>

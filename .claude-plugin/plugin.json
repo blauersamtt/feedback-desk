@@ -1,0 +1,10 @@
+{
+  "name": "feedback-desk",
+  "version": "1.0.0",
+  "description": "A private feedback board on claude.ai: people file reports with screenshots and PDFs, Claude works through them and answers in a chat thread per report.",
+  "author": { "name": "blauersamtt" },
+  "homepage": "https://github.com/blauersamtt/feedback-desk",
+  "repository": "https://github.com/blauersamtt/feedback-desk",
+  "license": "MIT",
+  "keywords": ["feedback", "artifact", "bug-reports", "non-developers"]
+}
