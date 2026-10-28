@@ -12,7 +12,7 @@ A private claude.ai artifact acts as the interface between a person and Claude:
 - An optional **checklist** holds fixed test items (1.1, 1.2, …) with the same status and thread.
 - The interface switches between German and English per viewer.
 
-The page is `template.html` next to this file. It needs the artifact capabilities `db` (shared database) and `assets` (screenshot uploads). `scripts/desk.cjs` (Node, next to this file; below `<skill dir>` means the folder of this SKILL.md) picks what needs an answer and builds replies, so long threads stay out of the conversation (Flow B).
+The page is `template.html` next to this file. It needs the artifact capabilities `db` (shared database), `assets` (screenshot and PDF uploads), `user` (read/unread state saved per person, private) and `sample` (the "To-dos" tab asks Claude from the page). Without `user` the read state stays in the browser; without `sample` the To-dos tab is hidden. `scripts/desk.cjs` (Node, next to this file; below `<skill dir>` means the folder of this SKILL.md) picks what needs an answer and builds replies, so long threads stay out of the conversation (Flow B).
 
 ## Status
 
@@ -44,6 +44,11 @@ One document per report or checklist item:
 | `thread` | Array of `{id, by: "user" \| "claude", at: ISO time, text, shots: [{id}]}`. Attachments are images (`{id}`) or PDFs (`{id, type: "pdf", name}`), up to 20 MB. ZIP and other files are not possible (the asset store refuses them); people paste a link instead. |
 | `updatedAt` | ISO time of the last change |
 
+Two more places, both written by the page, not by Claude:
+
+- Collection `todos`, document `list`: `{items: [{id, text, refs: [item keys], done, doneAt}], updatedAt}`. The person's to-do list; the page builds it on "Update my to-dos" by asking Claude (`sample`) and the person ticks items off. Don't edit it in Flow B unless the person asks.
+- `data/users/<id>/feedback-desk`: `{seen: {<item>: number of messages seen}}`, private per person (read/unread). Never touch it.
+
 Document ids differ between page versions (new reports use the `item` as id, older copies use `pM-…`). Take the id from what the query returns. Screenshots: `shots[].id` is an asset id in the artifact's asset store. Older copies may also hold `comment`, `shots` and `reply` at the top level. Read them as part of the history and never write them.
 
 ---
@@ -57,7 +62,7 @@ Document ids differ between page versions (new reports use the `item` as id, old
    - Optional: a checklist (sections with test items), or none.
 2. **Copy** `template.html` to a working file (the scratchpad, or where the person wants it). Change **only** the configuration block at the top of the `<script>`: `PROJECT_NAME`, `PROJECT_TAGLINE`, `DEFAULT_LANG`, `AREAS`, `CHECKLIST` (format in the comment; `[]` = no checklist tab). Set the `<title>` in line 1 to `<Project> Feedback`. Leave the collection name, field names and status codes as they are, because Flow B depends on them.
 3. **Check** that the script parses: extract the `<script>` content and run `node --check` on it.
-4. **Publish** with the `Artifact` tool: `file_path` = the working file, `icon: "feedback"`, `capabilities: {"db": {}, "assets": {}}`, a one-sentence `description`. Load the `artifact-capabilities` skill first if the session requires it before passing `capabilities`.
+4. **Publish** with the `Artifact` tool: `file_path` = the working file, `icon: "feedback"`, `capabilities: {"db": {}, "assets": {}, "user": {}, "sample": {}}`, a one-sentence `description`. On the first visit claude.ai asks the person once to allow the page to know who they are and to ask Claude; mention that. Load the `artifact-capabilities` skill first if the session requires it before passing `capabilities`.
 5. **Tell** the person the link and how to use it in two or three lines: open it signed in to claude.ai, "+ Neue Meldung", paste screenshots with Ctrl+V or "+ Bild", then tell Claude "schau ins Feedback".
 6. **Remember the link** for the project, e.g. in the project's `CLAUDE.md` ("Feedback: <url>, Flow B of the feedback-desk skill"), so later sessions find it without asking. If the person wants a different rule for what counts as small (step B5), note it there too.
 

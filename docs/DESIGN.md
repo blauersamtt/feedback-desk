@@ -28,6 +28,8 @@ Settled with the first user, a non-developer building an app with Claude, in Oct
 - Filters and tags are multi-select (an entry shows if it matches any selected one); "Alle" clears.
 - The thread is shown in stored order, never sorted by `at`: messages are only ever appended, and a wrong clock in one reply must not reorder the conversation.
 - Attachments: images and PDF (up to 20 MB, the asset store's limit). ZIP and other files are refused by the asset store; the page says to paste a link instead.
+- Read/unread: per entry the number of messages a person has seen; unread = a Claude message after that. Shown as bold title, accent edge and a "new" pill; filter "Unread", "Mark all read", "Mark as unread" in a report. Stored in the person's private `data/users/<id>` subtree so it matches across devices, with the browser as fallback.
+- To-dos: one button asks Claude (from the page, `sample`) to turn the active threads into a list of what the PERSON must do (merge, run a migration, check, answer, decide), duplicates merged into one item with all report refs. Ticks persist; on refresh done items stay done, new ones are added, outdated open ones drop out. Counts against the viewer's own Claude plan, no extra service.
 
 ## Token use
 

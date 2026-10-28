@@ -6,7 +6,7 @@
       "name": "feedback-desk",
       "source": "./",
       "description": "A private feedback board on claude.ai: people file reports with screenshots and PDFs, Claude works through them and answers in a chat thread per report.",
-      "version": "1.0.0"
+      "version": "1.1.0"
     }
   ]
 }
