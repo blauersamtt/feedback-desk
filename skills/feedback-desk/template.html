@@ -78,7 +78,7 @@ h1 { margin: 0; font-size: 24px; font-weight: 750; letter-spacing: -.2px; line-h
 .tools { display: grid; gap: 10px; margin: 6px 0 12px; }
 .search { display: flex; gap: 8px; align-items: center; min-height: 44px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 0 12px; color: var(--muted); }
 .search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); outline: 0; }
-.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { flex: none; min-height: 34px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); padding: 0 12px; font-size: 13px; font-weight: 600; }
 .chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-bg); color: var(--accent-ink); }
 .chip b { font-weight: 700; margin-left: 4px; }
@@ -264,6 +264,7 @@ const TEXT = {
     tooLarge: "Datei zu gross (max. 20 MB)", uploadFailed: "Datei konnte nicht hochgeladen werden.",
     noStore: "Speichern ist hier nicht verfügbar. Bitte angemeldet auf claude.ai öffnen.", lost: "Verbindung zum Speicher unterbrochen – bitte Seite neu laden.",
     switchTo: "Switch to English",
+    tagsMore: "+ {n} weitere", tagsLess: "weniger",
     fUnread: "Ungelesen", newPill: "neu", allRead: "✓ Alle gelesen", markUnread: "Als ungelesen markieren",
     todos: "To-dos", todoIntro: "Was du tun musst, aus allen offenen Meldungen. Claude stellt die Liste zusammen, du hakst ab.",
     todoMake: "Meine To-dos aktualisieren", todoBusy: "Claude liest die Meldungen …", todoUpdated: "Stand", todoEmpty: "Gerade nichts für dich zu tun.",
@@ -293,6 +294,7 @@ const TEXT = {
     tooLarge: "File too large (max. 20 MB)", uploadFailed: "File could not be uploaded.",
     noStore: "Saving is not available here. Please open it signed in on claude.ai.", lost: "Connection to storage lost – please reload the page.",
     switchTo: "Auf Deutsch umschalten",
+    tagsMore: "+ {n} more", tagsLess: "less",
     fUnread: "Unread", newPill: "new", allRead: "✓ Mark all read", markUnread: "Mark as unread",
     todos: "To-dos", todoIntro: "What you need to do, from all open reports. Claude puts the list together, you tick it off.",
     todoMake: "Update my to-dos", todoBusy: "Claude is reading the reports …", todoUpdated: "As of", todoEmpty: "Nothing for you to do right now.",
@@ -310,6 +312,7 @@ const PARKED = ["ok", "hold", "skip"];
 // Alte Kürzel aus früheren Fassungen: Fehler → Offen, Nicht testbar → Später
 const normStatus = (s) => (s === "fail" ? "" : s === "block" ? "skip" : STATUS_ORDER.includes(s) ? s : "");
 const HAS_CHECKLIST = CHECKLIST.length > 0;
+const TAGS_SHOWN = 10;
 const ALL_CHECK_IDS = CHECKLIST.flatMap((s) => s.items.map((i) => i.id));
 const NEW = "new-report";
 let waiting = false; // neue Daten kamen während des Tippens – nach dem Tippen zeichnen
@@ -596,7 +599,10 @@ function renderReports(ids) {
       h("div", { class: "chips", role: "group" }, counts.unread || filters.includes("unread") ? chip("unread", t("fUnread")) : null,
         counts.unread ? h("button", { class: "chip chip-action", type: "button", onclick: () => { ids.filter(isUnread).forEach(markRead); render(); } }, t("allRead")) : null,
         chip("active", t("fActive")), chip("review", t("fReview")), chip("reply", t("fReply")), chip("parked", t("fParked")), chip("done", t("fDone")), chip("all", t("fAll"))),
-      tags.length ? h("div", { class: "chips", role: "group" }, tags.map((tg) => h("button", { class: "chip", type: "button", "aria-pressed": String(tagFilters.includes(tg)), onclick: () => { tagFilters = toggle(tagFilters, tg); store.set("fd-tag", tagFilters); render(); } }, "#" + tg))) : null
+      // Viele Tags: zuerst nur die ersten (gewählte immer), Rest über „+ weitere“
+      tags.length ? h("div", { class: "chips", role: "group" }, (tags.length > TAGS_SHOWN && !store.get("fd-tags-all", false) ? tags.filter((tg, i) => i < TAGS_SHOWN || tagFilters.includes(tg)) : tags).map((tg) => h("button", { class: "chip", type: "button", "aria-pressed": String(tagFilters.includes(tg)), onclick: () => { tagFilters = toggle(tagFilters, tg); store.set("fd-tag", tagFilters); render(); } }, "#" + tg)),
+        tags.length > TAGS_SHOWN ? h("button", { class: "chip chip-action", type: "button", onclick: () => { store.set("fd-tags-all", !store.get("fd-tags-all", false)); render(); } },
+          store.get("fd-tags-all", false) ? t("tagsLess") : t("tagsMore").replace("{n}", String(tags.length - TAGS_SHOWN))) : null) : null
     ),
     shown.length
       ? h("ul", { class: "list" }, shown.map((id) => {
