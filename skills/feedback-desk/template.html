@@ -1,3 +1,7 @@
+<!DOCTYPE html>
+<html lang="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Feedback</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
@@ -265,6 +269,7 @@ const TEXT = {
     noStore: "Speichern ist hier nicht verfügbar. Bitte angemeldet auf claude.ai öffnen.", lost: "Verbindung zum Speicher unterbrochen – bitte Seite neu laden.",
     switchTo: "Switch to English",
     tagsMore: "+ {n} weitere", tagsLess: "weniger",
+    migrating: "Verläufe werden übernommen … {n} von {total}. Bitte Seite offen lassen.", migrateFailed: "Übernahme unterbrochen. Sie läuft beim nächsten Öffnen weiter, es geht nichts verloren.",
     fUnread: "Ungelesen", newPill: "neu", allRead: "✓ Alle gelesen", markUnread: "Als ungelesen markieren",
     todos: "To-dos", todoIntro: "Was du tun musst, aus allen offenen Meldungen. Claude stellt die Liste zusammen, du hakst ab.",
     todoMake: "Meine To-dos aktualisieren", todoBusy: "Claude liest die Meldungen …", todoUpdated: "Stand", todoEmpty: "Gerade nichts für dich zu tun.",
@@ -295,6 +300,7 @@ const TEXT = {
     noStore: "Saving is not available here. Please open it signed in on claude.ai.", lost: "Connection to storage lost – please reload the page.",
     switchTo: "Auf Deutsch umschalten",
     tagsMore: "+ {n} more", tagsLess: "less",
+    migrating: "Moving threads … {n} of {total}. Please keep this page open.", migrateFailed: "Move interrupted. It continues the next time you open the page, nothing is lost.",
     fUnread: "Unread", newPill: "new", allRead: "✓ Mark all read", markUnread: "Mark as unread",
     todos: "To-dos", todoIntro: "What you need to do, from all open reports. Claude puts the list together, you tick it off.",
     todoMake: "Update my to-dos", todoBusy: "Claude is reading the reports …", todoUpdated: "As of", todoEmpty: "Nothing for you to do right now.",
@@ -318,7 +324,8 @@ const NEW = "new-report";
 let waiting = false; // neue Daten kamen während des Tippens – nach dem Tippen zeichnen
 
 const state = {};
-let db = null, assets = null, col = null, sampler = null, seenRef = null, todoCol = null;
+let db = null, assets = null, col = null, msgCol = null, sampler = null, seenRef = null, todoCol = null;
+const msgsByItem = {};
 let todos = { items: [], updatedAt: "" }, todoBusy = false, todoError = "";
 let tab = "reports", openId = null, filters = ["active"], query = "", creating = false, tagFilters = [];
 const pending = {};
@@ -357,7 +364,7 @@ const h = (tag, attrs = {}, ...kids) => {
 const isReport = (id) => id.startsWith("M-");
 // Dokument-ID: die gespeicherte, falls bekannt (ältere Fassungen nutzen andere IDs), sonst neu
 const docId = (id) => rowOf(id).docId || (isReport(id) ? id : "p" + id.replace(/\./g, "-"));
-const rowOf = (id) => state[id] || { status: "", thread: [], tags: [] };
+const rowOf = (id) => state[id] || { item: id, status: "", thread: [], tags: [] };
 const tagsOf = (id) => (Array.isArray(rowOf(id).tags) ? rowOf(id).tags : []);
 const isActive = (id) => !PARKED.includes(rowOf(id).status || "");
 const isUrgent = (id) => rowOf(id).urgent === true;
@@ -376,15 +383,31 @@ function when(iso) {
   return d.toLocaleDateString(t("locale"), { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString(t("locale"), { hour: "2-digit", minute: "2-digit" });
 }
 
-// Verlauf; alte Felder (comment/reply früherer Fassungen) nur, wenn sie nicht schon im Verlauf stehen.
-function historyOf(row) {
-  // Reihenfolge wie gespeichert: Nachrichten werden nur angehängt, ihre Uhrzeiten können ungenau sein.
+// Verlauf: Jede Nachricht ist ein eigenes Dokument in "messages", geordnet nach der laufenden Nummer seq
+// (Uhrzeiten können ungenau sein). So muss beim Antworten niemand den ganzen Verlauf neu schreiben.
+// Frühere Fassungen speicherten thread/comment/reply im Eintrag selbst; das zählt, bis es übernommen ist.
+const keyOf = (e) => e.id || e.by + "|" + e.at + "|" + norm(e.text);
+function legacyOf(row) {
   const thread = Array.isArray(row.thread) ? [...row.thread] : [];
   const texts = new Set(thread.map((e) => e.by + ":" + norm(e.text)));
   const list = [];
   if ((norm(row.comment) || (row.shots || []).length) && !texts.has("user:" + norm(row.comment))) list.push({ id: "legacy-user", by: "user", text: row.comment || "", shots: row.shots || [], at: "" });
   if (norm(row.reply) && !texts.has("claude:" + norm(row.reply))) list.push({ id: "legacy-claude", by: "claude", text: row.reply, shots: [], at: "" });
   return list.concat(thread);
+}
+function historyOf(row) {
+  const msgs = msgsByItem[row.item] || [];
+  const moved = new Set(msgs.map((m) => m.src).filter(Boolean));
+  return legacyOf(row).filter((e) => !moved.has(keyOf(e))).concat(msgs);
+}
+const bySeq = (a, b) => (a.seq || 0) - (b.seq || 0) || String(a.at).localeCompare(String(b.at));
+const nextSeq = (id) => Math.max(rowOf(id).count || 0, historyOf(rowOf(id)).length, ...(msgsByItem[id] || []).map((m) => m.seq || 0)) + 1;
+// Neue Nachricht: sofort anzeigen, dann als eigenes Dokument speichern. Der Eintrag merkt sich, von wem die letzte stammt.
+function storeMessage(id, seq, text, shots, at) {
+  const m = { item: id, seq, id: newId(), by: "user", at, text, shots };
+  msgsByItem[id] = [...(msgsByItem[id] || []), m].sort(bySeq);
+  if (!msgCol) return Promise.resolve();
+  return msgCol.doc("m-" + m.id).set(m);
 }
 const lastOf = (id) => { const list = historyOf(rowOf(id)); return list[list.length - 1]; };
 // Gelesen: je Eintrag die Anzahl Nachrichten, die man schon gesehen hat. Ungelesen = eine Antwort von Claude danach.
@@ -454,7 +477,7 @@ function write(id, patch) {
   else {
     const r = state[id];
     body = { item: id, status: r.status || "", thread: r.thread || [], tags: Array.isArray(r.tags) ? r.tags : [], updatedAt };
-    for (const key of ["kind", "title", "area", "createdAt", "no", "urgent", "from"]) if (r[key] !== undefined) body[key] = r[key];
+    for (const key of ["kind", "title", "area", "createdAt", "no", "urgent", "from", "lastBy", "lastAt", "count"]) if (r[key] !== undefined) body[key] = r[key];
   }
   const ref = col.doc(docId(id));
   queues[id] = (queues[id] || Promise.resolve()).then(() => (exists ? ref.update(body) : ref.set(body))).then(
@@ -678,9 +701,12 @@ function composer(id) {
 function send(id) {
   const d = drafts[id] || { text: "", shots: [] };
   if (!norm(d.text) && !d.shots.length) return;
-  const thread = [...(rowOf(id).thread || []), { id: newId(), by: "user", text: d.text.trim(), shots: d.shots, at: new Date().toISOString() }];
+  const at = new Date().toISOString();
+  const seq = nextSeq(id);
+  const saved = storeMessage(id, seq, d.text.trim(), d.shots, at);
   drafts[id] = { text: "", shots: [] }; store.set("fd-drafts", drafts);
-  write(id, { thread });
+  write(id, { lastBy: "user", lastAt: at, count: seq });
+  saved.catch(() => setSaved(t("notSaved"), true));
 }
 
 function renderDetail(id) {
@@ -772,10 +798,14 @@ function createReport() {
   const taken = Object.keys(state).filter(isReport).map((id) => state[id].no).filter((n) => typeof n === "number");
   const no = (taken.length ? Math.max(...taken) : 0) + 1;
   const id = "M-" + newId();
-  const thread = norm(d.text) || (d.shots || []).length ? [{ id: newId(), by: "user", text: (d.text || "").trim(), shots: d.shots || [], at: now }] : [];
+  const hasMessage = norm(d.text) || (d.shots || []).length;
   const tags = [...new Set(String(d.tags || "").split(",").map(cleanTag).filter(Boolean))];
+  state[id] = { item: id, status: "", thread: [], tags, kind: "report", title, area: d.area || AREAS[0], createdAt: now, no, urgent: d.urgent === true };
+  if (hasMessage) {
+    Object.assign(state[id], { lastBy: "user", lastAt: now, count: 1 });
+    storeMessage(id, 1, (d.text || "").trim(), d.shots || [], now).catch(() => setSaved(t("notSaved"), true));
+  }
   drafts[NEW] = { text: "", shots: [], title: "", area: AREAS[0], tags: "", urgent: false }; store.set("fd-drafts", drafts);
-  state[id] = { status: "", thread, tags, kind: "report", title, area: d.area || AREAS[0], createdAt: now, no, urgent: d.urgent === true };
   creating = false; openId = id; tab = "reports";
   write(id, {});
 }
@@ -918,6 +948,17 @@ async function connect() {
       if (changed) render();
     }).catch(() => {});
   }
+  msgCol = db.collection("messages");
+  msgCol.onSnapshot((snap) => {
+    for (const k of Object.keys(msgsByItem)) delete msgsByItem[k];
+    for (const d of snap.docs) {
+      const m = d.data(); if (!m || !m.item) continue;
+      (msgsByItem[m.item] || (msgsByItem[m.item] = [])).push(m);
+    }
+    for (const k of Object.keys(msgsByItem)) msgsByItem[k].sort(bySeq);
+    const typing = document.activeElement && /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName);
+    if (typing) waiting = true; else render();
+  }, () => notice(t("lost")));
   todoCol = db.collection("todos");
   todoCol.onSnapshot((snap) => {
     const d = snap.docs.find((x) => x.id === "list");
@@ -931,7 +972,8 @@ async function connect() {
     for (const d of snap.docs) {
       const data = d.data(); if (!data || !data.item) continue;
       state[data.item] = {
-        stored: true, docId: d.id,
+        item: data.item, stored: true, docId: d.id,
+        lastBy: data.lastBy, lastAt: data.lastAt, count: data.count,
         status: normStatus(data.status || ""),
         thread: Array.isArray(data.thread) ? data.thread : [],
         tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
@@ -948,6 +990,47 @@ async function connect() {
     const typing = document.activeElement && /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName);
     if (typing) waiting = true; else render();
   }, () => notice(t("lost")));
+  // Alte Verläufe übernehmen (nur wer die Seite bearbeiten darf; läuft nur, solange noch etwas fehlt)
+  if (user && await user.canEdit().catch(() => false)) migrate().catch((e) => notice(t("migrateFailed") + " (" + ((e && (e.code || e.message)) || "?") + ")"));
+}
+
+// Einmalige Übernahme: thread/comment/reply werden zu einzelnen Nachrichten. Zuerst eine Sicherung pro Eintrag
+// in "backup", dann die Nachrichten mit festen IDs, zuletzt wird der Eintrag geleert. Ein Abbruch schadet nicht:
+// Beim nächsten Öffnen läuft es weiter, schon Übernommenes wird über src erkannt und nicht doppelt geschrieben.
+async function migrate() {
+  const meta = db.doc("meta/desk");
+  const [checks, msgs, done] = await Promise.all([col.get(), msgCol.get(), meta.get()]);
+  const fresh = {};
+  for (const d of msgs.docs) { const m = d.data(); if (m && m.item) (fresh[m.item] || (fresh[m.item] = [])).push(m); }
+  const todo = checks.docs.filter((d) => {
+    const data = d.data();
+    if (!data || !data.item) return false;
+    const known = new Set((fresh[data.item] || []).map((m) => m.src).filter(Boolean));
+    return legacyOf(data).some((e) => !known.has(keyOf(e))) || !data.lastBy && (legacyOf(data).length || (fresh[data.item] || []).length);
+  });
+  let n = 0;
+  for (const d of todo) {
+    const data = d.data();
+    notice(t("migrating").replace("{n}", String(++n)).replace("{total}", String(todo.length)));
+    const have = (fresh[data.item] || []).sort(bySeq);
+    const known = new Set(have.map((m) => m.src).filter(Boolean));
+    const add = legacyOf(data).filter((e) => !known.has(keyOf(e)));
+    if (add.length) {
+      const backup = db.doc("backup/" + d.id);
+      if (!(await backup.get()).exists) await backup.set({ ...data });
+    }
+    let seq = have.reduce((max, m) => Math.max(max, m.seq || 0), 0);
+    for (const e of add) {
+      seq++;
+      const m = { item: data.item, seq, id: e.id || newId(), by: e.by === "claude" ? "claude" : "user", at: e.at || data.createdAt || "", text: e.text || "", shots: Array.isArray(e.shots) ? e.shots : [], src: keyOf(e) };
+      await msgCol.doc("m-" + d.id + "-" + seq).set(m);
+      have.push(m);
+    }
+    const last = have[have.length - 1];
+    await col.doc(d.id).update({ thread: [], comment: "", reply: "", shots: [], lastBy: last ? last.by : "", lastAt: last ? last.at : "", count: seq });
+  }
+  if (todo.length) notice("");
+  if (!done.exists) await meta.set({ format: 2, migratedAt: new Date().toISOString() });
 }
 
 // Kopf und Reiter aus der Konfiguration

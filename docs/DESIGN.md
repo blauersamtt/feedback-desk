@@ -26,14 +26,19 @@ Settled with the first user, a non-developer building an app with Claude, in Oct
 ## Page details
 
 - Filters and tags are multi-select (an entry shows if it matches any selected one); "Alle" clears.
-- The thread is shown in stored order, never sorted by `at`: messages are only ever appended, and a wrong clock in one reply must not reorder the conversation.
+- The thread is shown by `seq`, never sorted by `at`: a wrong clock in one reply must not reorder the conversation.
 - Attachments: images and PDF (up to 20 MB, the asset store's limit). ZIP and other files are refused by the asset store; the page says to paste a link instead.
 - Read/unread: per entry the number of messages a person has seen; unread = a Claude message after that. Shown as bold title, accent edge and a "new" pill; filter "Unread", "Mark all read", "Mark as unread" in a report. Stored in the person's private `data/users/<id>` subtree so it matches across devices, with the browser as fallback.
 - To-dos: one button asks Claude (from the page, `sample`) to turn the active threads into a list of what the PERSON must do (merge, run a migration, check, answer, decide), duplicates merged into one item with all report refs. Ticks persist; on refresh done items stay done, new ones are added, outdated open ones drop out. Counts against the viewer's own Claude plan, no extra service.
 
-## Token use
+## Token use and message storage
 
-Long threads made every check expensive. Flow B therefore downloads only active entries into files (`out_dir`), and `scripts/desk.cjs` prints just the new messages per entry and builds replies from the files, so old threads never pass through the conversation.
+Long threads made every check expensive, and a reply had to send the whole thread back. Since November 2026 the tools also no longer read into or write from files. So every message is its own document in `messages`, ordered by `seq`, and `checks` holds only short data plus `lastBy`, `lastAt` and `count`.
+
+- Claude finds work with one query on `lastBy` and `status`, reads the last few messages per entry and writes one message plus the short data in one call that applies both or neither.
+- `seq` sets the order, so a wrong clock cannot reorder a conversation.
+- The database guidance warns against one document per item for endless streams. Feedback stays far below the limits (25,000 documents, 100 MB), so this is fine here.
+- The page moves old threads itself when someone with edit access opens it: first a copy in `backup`, then the messages under fixed ids, then it empties the old fields. An interruption is harmless, it continues on the next visit. `meta/desk` with `format: 2` marks the end.
 
 ## Stage plan
 

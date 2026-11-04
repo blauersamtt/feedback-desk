@@ -23,14 +23,14 @@ Made for people who build software with Claude but don't program themselves. Ins
 - **To-dos at one tap:** Claude reads the open reports and lists what *you* need to do (merge this, run that, check something, answer a question), duplicates merged, with checkboxes.
 - **Filters** (multi-select), tags, search, and an optional **checklist** of fixed test items.
 - **German and English** interface, switchable by each viewer. Light and dark mode.
-- **Token-friendly:** Claude downloads only active reports into files and reads just the new messages, so long threads don't get more expensive every round.
+- **Token-friendly:** every message is stored on its own. Claude finds what needs an answer with one short query, reads only the last few messages and writes only its reply, so long threads don't get more expensive every round.
 
 Everything is stored in the artifact's own database on claude.ai. No extra service, no account, no cost beyond your Claude plan. The board is private until you share it.
 
 ## Requirements
 
 - Claude Code (desktop app or CLI) with Artifacts that support a database, file uploads, viewer identity and asking Claude from the page (`db`, `assets`, `user`, `sample`). On the first visit claude.ai asks once whether the page may do the last two. The to-do button uses your own Claude plan.
-- Node.js, for the small helper script Claude runs while working through the feedback.
+- Node.js, for a quick check of the page during setup.
 
 ## Install
 
@@ -55,7 +55,6 @@ ZIP files can't be attached (claude.ai's file store refuses them). Paste a link 
 
 - `skills/feedback-desk/SKILL.md`: what Claude does when setting up and working through the board.
 - `skills/feedback-desk/template.html`: the board itself (one HTML page, no dependencies).
-- `skills/feedback-desk/scripts/desk.cjs`: picks the reports that need an answer and builds replies.
 - `docs/DESIGN.md`: design decisions and what may come next.
 
 ---
